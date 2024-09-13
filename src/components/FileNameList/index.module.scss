@@ -25,6 +25,7 @@
 
   .tab-item {
     display: inline-flex;
+    min-width: fit-content;
     padding: 8px 10px 6px;
     font-size: 13px;
     line-height: 20px;

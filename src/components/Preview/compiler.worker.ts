@@ -115,3 +115,20 @@ function getModuleFile(files: Files, modulePath: string) {
   }
   return files[moduleName]
 }
+
+// self.postMessage({
+//   type: 'COMPILED_CODE',
+//   data: 'xx',
+// })
+
+// 与主线程进行通信
+self.addEventListener('message', async ({ data }) => {
+  try {
+    self.postMessage({
+      type: 'COMPILED_CODE',
+      data: compile(data),
+    })
+  } catch (e) {
+    self.postMessage({ type: 'ERROR', error: e })
+  }
+})

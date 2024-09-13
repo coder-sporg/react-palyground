@@ -1,10 +1,12 @@
 import { PlaygroundContext } from '@/Playground/PlaygroundContext'
-import { useContext, useEffect, useState } from 'react'
-import { compile } from './compiler'
+import { useContext, useEffect, useRef, useState } from 'react'
+// import { compile } from './compiler'
 // import Editor from '@/components/Editor'
 import iframeRaw from './iframe.html?raw'
 import { IMPORT_MAP_FILE_NAME } from '@/Playground/files'
 import { Message } from '../Message'
+import CompilerWorker from './compiler.worker?worker'
+import { debounce } from 'lodash-es'
 
 interface MessageData {
   data: {
@@ -36,10 +38,35 @@ export default function Preview() {
     setIframeUrl(getIframeUrl())
   }, [files[IMPORT_MAP_FILE_NAME].value, compiledCode])
 
+  // useEffect(() => {
+  //   const res = compile(files)
+  //   setCompiledCode(res)
+  // }, [files])
+  const compilerWorkerRef = useRef<Worker>()
+
+  // 主线程这边给 worker 线程传递 files，然后拿到 worker 线程传回来的编译后的代码
   useEffect(() => {
-    const res = compile(files)
-    setCompiledCode(res)
-  }, [files])
+    if (!compilerWorkerRef.current) {
+      // 子线程编译代码通知主线程
+      compilerWorkerRef.current = new CompilerWorker()
+      compilerWorkerRef.current.addEventListener('message', ({ data }) => {
+        // console.log('worker', data.data)
+        if (data.type === 'COMPILED_CODE') {
+          setCompiledCode(data.data)
+        } else {
+          console.error('error', data)
+        }
+      })
+    }
+  }, [])
+
+  // 文件变化，主线程通知子线程进行编译
+  useEffect(
+    debounce(() => {
+      compilerWorkerRef.current?.postMessage(files)
+    }, 500),
+    [files]
+  )
 
   const [error, setError] = useState('')
   const handleMessage = (msg: MessageData) => {
